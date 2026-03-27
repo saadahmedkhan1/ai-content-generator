@@ -1,0 +1,733 @@
+{
+  "name": "AI Content Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "AI Content Generator",
+        "formDescription": "🔒 Security Notice: Due to YouTube's strict OAuth 2.0 privacy policies, automated transcript extraction is restricted to my verified YouTube channel. To process external videos, please use the \"Paste Transcript\" field below.",
+        "formFields": {
+          "values": [
+            {
+              "fieldName": "url",
+              "fieldLabel": "YouTube URL"
+            },
+            {
+              "fieldName": "script",
+              "fieldLabel": "Youtube Video Script",
+              "fieldType": "textarea"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.4,
+      "position": [
+        -208,
+        -48
+      ],
+      "id": "e47cdc9c-58db-4670-845d-573e4bd99874",
+      "name": "On form submission",
+      "webhookId": "9eaee14f-da6f-42c7-83c4-406c4a96b72b"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get the inputs from the form\nconst inputUrl = $input.item.json.url || \"\";\nconst inputScript = $input.item.json.script || \"\"; \n\n// 2. Define the Regex for YouTube IDs\nconst regExp = /^.*(youtu.be\\/|v\\/|u\\/\\w\\/|embed\\/|watch\\?v=|&v=)([^#&?]*).*/;\nconst match = inputUrl.match(regExp);\n\n// 3. The \"Traffic Cop\" Logic\nlet assignedRoute = \"stop\"; \nlet cleanVideoId = null;\n\nif (match && match[2].length === 11) {\n  assignedRoute = \"youtube_api\";\n  cleanVideoId = match[2];\n} else if (inputScript.trim() !== \"\") {\n  assignedRoute = \"direct_to_ai\";\n}\n\n// 4. Send the routing instructions to the Switch node\nreturn {\n  json: {\n    route: assignedRoute,\n    videoId: cleanVideoId,\n    script: inputScript\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        -48
+      ],
+      "id": "c7999980-e17f-4886-95c4-2e00c1058ecd",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get the data from the immediate previous node\nconst inputData = $input.item.json;\n\n// 2. BULLETPROOF ID GRABBER\nlet cleanVideoId = \"Manual-Upload\";\ntry {\n    const switchNode = $('Switch').first();\n    if (switchNode && switchNode.json && switchNode.json.videoId) {\n        cleanVideoId = switchNode.json.videoId;\n    } else if (inputData.videoId) {\n        cleanVideoId = inputData.videoId;\n    }\n} catch (error) {\n    if (inputData.videoId) {\n        cleanVideoId = inputData.videoId;\n    }\n}\n\n// 3. Figure out WHICH lane we took\nlet rawTranscript = \"\";\nif (inputData.script) {\n    rawTranscript = inputData.script;\n} else if (inputData.data) {\n    rawTranscript = inputData.data;\n} else {\n    rawTranscript = \"No transcript found.\";\n}\n\n// 4. THE SCRUBBER: Remove timestamps and formatting tags\nlet cleanTranscript = rawTranscript\n    .replace(/^\\d{1,2}:\\d{2}:\\d{2}.*\\n?/gm, '') // Removes timestamp lines\n    .replace(/WEBVTT.*\\n?/g, '')                // Removes VTT headers (if any)\n    .replace(/\\n+/g, ' ')                       // Replaces line breaks with spaces\n    .trim();                                    // Removes extra spaces at the ends\n\n// 5. AUTOMATIC GENERATION\nconst dynamicTitle = cleanTranscript ? \"Video Topic: \" + cleanTranscript.substring(0, 60) + \"...\" : \"Auto-Generated AI Content\";\nconst dynamicDescription = cleanTranscript ? cleanTranscript.substring(0, 150) + \"...\" : \"Content extracted directly from transcript.\";\n\n// 6. Output the perfect data payload!\nreturn {\n  json: {\n    video_id: cleanVideoId,\n    video_url: cleanVideoId !== \"Manual-Upload\" ? \"https://www.youtube.com/watch?v=\" + cleanVideoId : \"No URL provided\",\n    title: dynamicTitle,\n    description: dynamicDescription,\n    transcript: cleanTranscript \n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        -48
+      ],
+      "id": "352b5874-ca84-4b35-990c-a9cca1fc27ee",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are an expert Social Media Ghostwriter.\nI will give you a Video Title, Description, and Transcript.\n\nINPUT DATA:\nTitle: {{ $json.title }}\nDescription: {{ $json.description }}\nTranscript: {{ $json.transcript }}\n\nINSTRUCTIONS:\n1. Write a professional, high-value LinkedIn post based on the Transcript. \n2. IF the transcript is short, use the Title and Description to brainstorm the rest of the details creatively.\n3. Use formatting (bullet points, line breaks) to make it highly readable.\n4. NEVER use placeholders like [Insert Text Here] or [Link].\n5. CRITICAL RULE: The entire output MUST be strictly under 1,800 characters.\n6. Do NOT include the YouTube link in the text."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1136,
+        -144
+      ],
+      "id": "f2ce817f-7f77-461a-81b5-a44cedf7a6cb",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "12xg9fQoLNw3w9so",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=You are an expert Social Media Ghostwriter.\nI will give you a Video Title, Description, and Transcript.\n\nINPUT DATA:\nTitle: {{ $json.title }}\nDescription: {{ $json.description }}\nTranscript: {{ $json.transcript }}\n\nINSTRUCTIONS:\n1. Write a high-viral, engaging Twitter thread based on the Transcript. \n2. IF the transcript is short, use the Title and Description to brainstorm the rest of the details creatively.\n3. NEVER use placeholders like [Insert Text Here] or [Link].\n4. CRITICAL RULE: The entire output MUST be strictly under 1,800 characters to fit database limits.\n5. Do NOT include the YouTube link in the text (I will add it later).\n\"CRITICAL RULE: Write ONLY ONE single, punchy tweet (maximum 280 characters). DO NOT write a thread. Include 2 relevant hashtags.\""
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1136,
+        48
+      ],
+      "id": "04585572-3087-4e0b-a0b9-c528a6909183",
+      "name": "Message a model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "12xg9fQoLNw3w9so",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {
+          "clashHandling": {
+            "values": {
+              "resolveClash": "addSuffix"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1488,
+        -48
+      ],
+      "id": "90117dff-f45d-4add-9255-c156beb9223e",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "083a58d0-e06a-45c5-9f4c-7e0e05d207f4",
+              "name": "video_title",
+              "value": "={{ $('Code in JavaScript1').item.json.title }}",
+              "type": "string"
+            },
+            {
+              "id": "f6fe181b-0b57-49dd-b40f-687d2b64dbac",
+              "name": "linkedin_draft",
+              "value": "={{ $json.output_1[0].content[0].text }}",
+              "type": "string"
+            },
+            {
+              "id": "2b1a5756-3395-4987-b8ee-c4dc08f1e4b5",
+              "name": "twitter_draft",
+              "value": "={{ $json.output_2[0].content[0].text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1712,
+        -48
+      ],
+      "id": "f483f00b-a4af-4c5d-a992-adc4e526afd8",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "fromEmail": "me.saadahmedkhan@gmail.com",
+        "toEmail": "me.saadahmedkhan@gmail.com",
+        "subject": "=New Social Content: {{ $('Edit Fields').item.json.video_title }}",
+        "html": "=<h2>🚀 New Content Generated</h2>\n<p><b>Video Title:</b>{{ $json.video_title }}</p>\n\n<hr>\n\n<h3>🔵 LinkedIn Draft</h3>\n<pre style=\"white-space: pre-wrap; font-family: sans-serif; background-color: #f4f4f4; padding: 10px;\">\n{{ $json.linkedin_draft }}\n</pre>\n\n<hr>\n\n<h3>🐦 Twitter Thread</h3>\n<pre style=\"white-space: pre-wrap; font-family: sans-serif; background-color: #e8f5fd; padding: 10px;\">\n{{ $json.twitter_draft }}\n</pre> ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        1936,
+        240
+      ],
+      "id": "e487e9ee-46f5-4954-8ac5-27e2e3346595",
+      "name": "Send email",
+      "webhookId": "29d66eb1-4550-4822-8295-85e72f9b94f3",
+      "credentials": {
+        "smtp": {
+          "id": "zKn6ZEi9IDpUOdDM",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "databaseId": {
+          "__rl": true,
+          "value": "2f484a4e-8395-80e0-b206-f32ca74c44bd",
+          "mode": "list",
+          "cachedResultName": "N8N DB",
+          "cachedResultUrl": "https://www.notion.so/2f484a4e839580e0b206f32ca74c44bd"
+        },
+        "title": "={{ $('Edit Fields').item.json.video_title }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "LinkedIn Draft|rich_text",
+              "textContent": "={{ $json.linkedin_draft }}"
+            },
+            {
+              "key": "Twitter Thread|rich_text",
+              "textContent": "={{ $json.twitter_draft }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1936,
+        48
+      ],
+      "id": "b7fbb009-1d20-4d52-bd63-a01805c2cf4c",
+      "name": "Create a database page",
+      "credentials": {
+        "notionApi": {
+          "id": "gWxSgTeVM9mENofR",
+          "name": "Notion account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1bRsCya6APHEhgzVBNkjQ09tdMtysCLiNyXMlO3XDlEQ",
+          "mode": "list",
+          "cachedResultName": "AI Content Generator",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1bRsCya6APHEhgzVBNkjQ09tdMtysCLiNyXMlO3XDlEQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1bRsCya6APHEhgzVBNkjQ09tdMtysCLiNyXMlO3XDlEQ/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Video Title": "={{ $json.video_title }}",
+            "LinkedIn Draft": "={{ $json.linkedin_draft }}",
+            "Twitter Draft": "={{ $json.twitter_draft }}"
+          },
+          "matchingColumns": [
+            "Video Title"
+          ],
+          "schema": [
+            {
+              "id": "Video Title",
+              "displayName": "Video Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "LinkedIn Draft",
+              "displayName": "LinkedIn Draft",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Twitter Draft",
+              "displayName": "Twitter Draft",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1936,
+        -144
+      ],
+      "id": "95696914-1eb0-4555-90aa-d9f87a2a190c",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "QuhuUq4pB9XKJsKM",
+          "name": "Google Sheets account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "youtube_api",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "97f32212-1cac-4f7e-9605-2f866a09d460"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "037fc40c-a904-4807-91e0-49db48289d2f",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "direct_to_ai",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        -48
+      ],
+      "id": "e0261b77-859c-4dd3-9ab4-144061cbccef",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/captions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet"
+            },
+            {
+              "name": "=videoId",
+              "value": "={{ $json.videoId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        464,
+        -128
+      ],
+      "id": "72106c3f-74b7-41d1-8f1b-27b85d85107d",
+      "name": "HTTP Request",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "ijpqrvg6wWqcdkd1",
+          "name": "YouTube account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/youtube/v3/captions/{{ $json.items[0].id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "youTubeOAuth2Api",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        688,
+        -128
+      ],
+      "id": "4774f88f-ac78-4a07-b056-87c844137c7e",
+      "name": "HTTP Request1",
+      "credentials": {
+        "youTubeOAuth2Api": {
+          "id": "ijpqrvg6wWqcdkd1",
+          "name": "YouTube account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "person": "K91Zb-l-VK",
+        "text": "={{ $json.linkedin_draft }}\n\n{{ $('On form submission').item.json.url !== \"No URL provided\" ? \"Watch the full breakdown here: \" + $('On form submission').item.json.url : \"\" }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [
+        1936,
+        432
+      ],
+      "id": "d18185bd-ce2b-489b-882b-0d5d03d98e18",
+      "name": "Create a post",
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "bW7DQht3yZPhtUxM",
+          "name": "LinkedIn account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.twitter_draft }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [
+        1936,
+        624
+      ],
+      "id": "1bfc15f0-8841-4125-8241-6105de11b381",
+      "name": "Create Tweet",
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "3WCqynKHhv8EpDge",
+          "name": "X account"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "authentication": "webhook",
+        "content": "={{ $json.twitter_draft }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1936,
+        -720
+      ],
+      "id": "a4b92488-0e0c-4ab8-bf60-474d0bb1f08a",
+      "name": "Discord",
+      "webhookId": "b641d5ca-aa0a-4a6a-9508-83f6a2fe4d34",
+      "credentials": {
+        "discordWebhookApi": {
+          "id": "38IG1UNDyI01BcPN",
+          "name": "Discord Webhook account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "=C0AP369106P",
+          "mode": "id"
+        },
+        "text": "={{ $json.twitter_draft }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        1936,
+        -528
+      ],
+      "id": "674bd318-7017-4ead-9f8c-33a4810b1e00",
+      "name": "Send a message",
+      "webhookId": "51d7d583-6cfd-4f2a-8a60-2b6ab9214024",
+      "credentials": {
+        "slackApi": {
+          "id": "BA472iWx9trIzkGF",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "7749307818",
+        "text": "={{ $json.twitter_draft }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1936,
+        -336
+      ],
+      "id": "909d3717-0bf8-4723-9f18-6560e81859f6",
+      "name": "Send a text message",
+      "webhookId": "27ce577e-c4aa-41b2-883b-049f2fc0c17f",
+      "credentials": {
+        "telegramApi": {
+          "id": "PFa8mvMsLIyfnk1n",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Create a database page",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create a post",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Tweet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Discord",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "a545576d-1e43-4203-a412-5cd8055c3a4c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "81a13cad01dd71e9ff9b6c307343166f1281387a177f0bd9274071a91d630668"
+  },
+  "id": "fwe_sOMjE90BCvMbTOvlH",
+  "tags": []
+}
