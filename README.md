@@ -1,4 +1,4 @@
-# 🚀 Zero-Touch AI Content Pipeline
+# 🚀 AI Content Generator: YouTube to Social Media Pipeline
 
 [![n8n](https://img.shields.io/badge/Orchestration-n8n-FF6D5A?style=for-the-badge&logo=n8n)](https://n8n.io/)
 [![OpenAI](https://img.shields.io/badge/Intelligence-GPT--4o-412991?style=for-the-badge&logo=openai)](https://openai.com/)
