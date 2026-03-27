@@ -53,6 +53,7 @@ I engineered this solution to handle the entire content lifecycle autonomously. 
 3. **Credentials:** You will need to authenticate the following nodes using your own credentials:
    * OpenAI API Key
    * Slack Bot Token (Needs `chat:write` scope)
+   * Discord webhook url
    * Telegram Bot API Key
    * LinkedIn OAuth 2.0 (Client ID & Secret)
    * Notion Internal Integration Secret
