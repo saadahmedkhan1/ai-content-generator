@@ -11,7 +11,7 @@
 
 ### 🎥 Watch the Live Demo
 
-[![Watch the Demo](https://img.youtube.com/vi/BeHkGZ8wjb4/maxresdefault.jpg)](https://www.youtube.com/watch?v=BeHkGZ8wjb4)
+[![Watch the Demo](https://img.youtube.com/vi/iimNpieriiE/maxresdefault.jpg)](https://www.youtube.com/watch?v=iimNpieriiE))
 
 I engineered this solution to handle the entire content lifecycle autonomously. By simply dropping a YouTube link into a webhook, the system fetches the transcript, uses OpenAI to generate platform-specific drafts, archives the data, alerts the team across three different messaging apps simultaneously, and auto-publishes the final post to LinkedIn via OAuth 2.0.
 
